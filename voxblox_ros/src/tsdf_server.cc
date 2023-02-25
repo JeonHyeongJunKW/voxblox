@@ -214,18 +214,18 @@ void TsdfServer::getServerConfigFromRosParam(
 }
 
 void TsdfServer::processPointCloudMessageAndInsert(
-    const sensor_msgs::PointCloud2::Ptr& pointcloud_msg,
-    const Transformation& T_G_C, const bool is_freespace_pointcloud) {
+    const sensor_msgs::PointCloud2::Ptr& pointcloud_msg, //포인트 클라우드 메시지를 받는다.
+    const Transformation& T_G_C, const bool is_freespace_pointcloud) { //전역위치, 자유공간 포인트클라우드인지 확인한다.
   // Convert the PCL pointcloud into our awesome format.
-  // TODO : 해석해야함, 여기서 이미지의 semantic 정보를 넘겨줄 수 있을 거같음.
+  //
   //포멧을 바꾸는 건가보다
 
   // Horrible hack fix to fix color parsing colors in PCL.
   bool color_pointcloud = false;
   bool has_intensity = false;
   for (size_t d = 0; d < pointcloud_msg->fields.size(); ++d) {
-    if (pointcloud_msg->fields[d].name == std::string("rgb")) {
-      pointcloud_msg->fields[d].datatype = sensor_msgs::PointField::FLOAT32;
+    if (pointcloud_msg->fields[d].name == std::string("rgb")) {//만약에 필드의 이름을 검사하다가 rgb가 있다면?
+      pointcloud_msg->fields[d].datatype = sensor_msgs::PointField::FLOAT32; //데이터 타입을 Float32로 바꾼다. 왜일까?
       color_pointcloud = true;
     } else if (pointcloud_msg->fields[d].name == std::string("intensity")) {
       has_intensity = true;
@@ -234,13 +234,13 @@ void TsdfServer::processPointCloudMessageAndInsert(
 
   Pointcloud points_C;
   Colors colors;
-  timing::Timer ptcloud_timer("ptcloud_preprocess");
+  timing::Timer ptcloud_timer("ptcloud_preprocess");// 전처리하는데 걸리는 시간을 측정한다.
 
   // Convert differently depending on RGB or I type.
   if (color_pointcloud) {
     pcl::PointCloud<pcl::PointXYZRGB> pointcloud_pcl;
     // pointcloud_pcl is modified below:
-    pcl::fromROSMsg(*pointcloud_msg, pointcloud_pcl);
+    pcl::fromROSMsg(*pointcloud_msg, pointcloud_pcl);//pcl로 바꾼다.
     convertPointcloud(pointcloud_pcl, color_map_, &points_C, &colors);
   } else if (has_intensity) {
     pcl::PointCloud<pcl::PointXYZI> pointcloud_pcl;
@@ -254,7 +254,7 @@ void TsdfServer::processPointCloudMessageAndInsert(
     convertPointcloud(pointcloud_pcl, color_map_, &points_C, &colors);
   }
   ptcloud_timer.Stop();
-
+  //TODO : ICP부분에 대한 해석
   Transformation T_G_C_refined = T_G_C;
   if (enable_icp_) {
     timing::Timer icp_timer("icp");

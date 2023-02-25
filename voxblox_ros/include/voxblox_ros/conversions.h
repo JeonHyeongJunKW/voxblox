@@ -132,14 +132,14 @@ inline void convertPointcloud(
   points_C->reserve(pointcloud_pcl.size());
   colors->reserve(pointcloud_pcl.size());
   for (size_t i = 0; i < pointcloud_pcl.points.size(); ++i) {
-    if (!isPointFinite(pointcloud_pcl.points[i])) {
+    if (!isPointFinite(pointcloud_pcl.points[i])) {//그냥 무한대인지 검사한다.
       continue;
     }
     points_C->push_back(Point(pointcloud_pcl.points[i].x,
                               pointcloud_pcl.points[i].y,
-                              pointcloud_pcl.points[i].z));
+                              pointcloud_pcl.points[i].z));//포인트를 선언후에 삽입한다.
     colors->emplace_back(
-        convertColor<PCLPoint>(pointcloud_pcl.points[i], color_map));
+        convertColor<PCLPoint>(pointcloud_pcl.points[i], color_map));//ConvertColor가 colors의 생성자에 대한 인자를 반환하는구나. Color객체를 만들어서 반환함
   }
 }
 
