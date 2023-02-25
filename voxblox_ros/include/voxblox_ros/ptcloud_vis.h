@@ -70,7 +70,7 @@ void createColorPointcloudFromLayer(
   // Iterate over all blocks.
   for (const BlockIndex& index : blocks) {
     // Iterate over all voxels in said blocks.
-    const Block<VoxelType>& block = layer.getBlockByIndex(index);
+    const Block<VoxelType>& block = layer.getBlockByIndex(index);//q블럭을 찾아옵니다.
 
     for (size_t linear_index = 0; linear_index < num_voxels_per_block;
          ++linear_index) {
@@ -99,11 +99,11 @@ void createColorPointcloudFromLayer(
   CHECK_NOTNULL(pointcloud);
   pointcloud->clear();
   BlockIndexList blocks;
-  layer.getAllAllocatedBlocks(&blocks);
+  layer.getAllAllocatedBlocks(&blocks);//할당된 블록을 얻어옵니다.
 
   // Cache layer settings.
   size_t vps = layer.voxels_per_side();
-  size_t num_voxels_per_block = vps * vps * vps;
+  size_t num_voxels_per_block = vps * vps * vps;//블럭당 복셀사이즈
 
   // Temp variables.
   double intensity = 0.0;
@@ -116,8 +116,8 @@ void createColorPointcloudFromLayer(
          ++linear_index) {
       Point coord = block.computeCoordinatesFromLinearIndex(linear_index);
       if (vis_function(block.getVoxelByLinearIndex(linear_index), coord,
-                       &intensity)) {
-        pcl::PointXYZI point;
+                       &intensity)) {//인덱스, 좌표를 받아서 밝기를 얻어옵니다.
+        pcl::PointXYZI point;//포인트를 받아서 등록합니다.
         point.x = coord.x();
         point.y = coord.y();
         point.z = coord.z();
@@ -347,6 +347,18 @@ inline void createDistancePointcloudFromTsdfLayer(
   CHECK_NOTNULL(pointcloud);
   createColorPointcloudFromLayer<TsdfVoxel>(
       layer, &visualizeDistanceIntensityTsdfVoxels, pointcloud);
+  /*
+   inline bool visualizeDistanceIntensityTsdfVoxels(const TsdfVoxel& voxel,
+                                                 const Point&, //cord
+                                                 double* intensity) {
+    CHECK_NOTNULL(intensity);
+    constexpr float kMinWeight = 1e-3;
+    if (voxel.weight > kMinWeight) {
+      *intensity = voxel.distance;
+      return true;
+    }
+    return false;
+  } */
 }
 
 /**

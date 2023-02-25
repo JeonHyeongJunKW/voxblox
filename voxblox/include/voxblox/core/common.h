@@ -223,7 +223,7 @@ inline BlockIndex getBlockIndexFromGlobalVoxelIndex(
                  voxels_per_side_inv));
 }
 
-inline bool isPowerOfTwo(int x) { return (x & (x - 1)) == 0; }
+inline bool isPowerOfTwo(int x) { return (x & (x - 1)) == 0; } //2의 거듭제곱인지 확인한다.
 
 /**
  * Converts from a global voxel index to the index inside a block.

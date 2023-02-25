@@ -77,9 +77,9 @@ bool Transformer::lookupTransform(const std::string& from_frame,
                                   Transformation* transform) {
   CHECK_NOTNULL(transform);
   if (use_tf_transforms_) {
-    return lookupTransformTf(from_frame, to_frame, timestamp, transform);
+    return lookupTransformTf(from_frame, to_frame, timestamp, transform);//tf변환을 쓴다면
   } else {
-    return lookupTransformQueue(timestamp, transform);
+    return lookupTransformQueue(timestamp, transform);//queue를쓴다면
   }
 }
 
@@ -92,7 +92,7 @@ bool Transformer::lookupTransformTf(const std::string& from_frame,
   tf::StampedTransform tf_transform;
   ros::Time time_to_lookup = timestamp;
 
-  // Allow overwriting the TF frame for the sensor.
+  // Allow overwriting the TF frame for the sensor.// 센서에 대한 TF 이름을 얻어옵니다.
   std::string from_frame_modified = from_frame;
   if (!sensor_frame_.empty()) {
     from_frame_modified = sensor_frame_;
@@ -100,12 +100,14 @@ bool Transformer::lookupTransformTf(const std::string& from_frame,
 
   // Previous behavior was just to use the latest transform if the time is in
   // the future. Now we will just wait.
+  //tf_listener를 통해서 변환 가능한지 확인한다.
   if (!tf_listener_.canTransform(to_frame, from_frame_modified,
                                  time_to_lookup)) {
     return false;
   }
 
   try {
+    //변환행렬을 리턴한다.
     tf_listener_.lookupTransform(to_frame, from_frame_modified, time_to_lookup,
                                  tf_transform);
   } catch (tf::TransformException& ex) {  // NOLINT

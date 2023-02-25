@@ -51,6 +51,27 @@ Helen Oleynikova, Zachary Taylor, Marius Fehr, Juan Nieto, and Roland Siegwart, 
 }
 ```
 
+# 추가적인 조사할 내용
+- 내부 코드에 대한 주석 및 분석을 합니다. 
+- 분석을 통해서 semantic한 정보를 가진 mesh를 생성하는 방법을 찾습니다.
+- Kimera의 내부에서 point에 라벨을 부여할 수 있었던 방법을 찾습니다. 
+  - 스테레오카메라로부터 생성된 3차원점에 라벨을 부여한다.
+  - bundled raycasting간에서 각 ray bundle에 대해서, 번들에서 관측된 라벨에 대한 빈도로부터 확률 벡터를 얻는다. 
+  - 이것을 truncated 범위(평면근처) 내에서 전파한다. 
+  - 그 ray를 따라서 복셀을 경유하는 동안에, 우리는 사후 라벨확률을 각 복셀에 대해서 계산한다.
+  - metric-semantic mesh는 marching cube를 사용하여 대응된다.
+
+# 조사를 통해서 배운 내용
+- tsdf_sever_node.cc가 기본적인 노드이다.
+- tsdf_server.cc를 통해서 tsdf의 subscribe와 publish의 등록과 처리를 클래스형태로 구현한다.
+  - 그중에서도 유심히 봐야하는 함수는 pointcloud를 삽입하는 아래의 함수이다. 
+  ```
+  processPointCloudMessageAndInsert
+  ```
+  - pcl에서 나온정보로부터 메쉬의 semantic을 정하기 위해서는 pcl::PointCloud에 semantic정보를 넣어야한다.
+- tsdf로부터 mesh를 만드는 부분도 분석해보자. 분석을 통해서 mesh각각에 객체에 따른 색상을 할당해보자.
+
+
 # Credits
 This library was written primarily by Helen Oleynikova and Marius Fehr, with significant contributions from Zachary Taylor, Alexander Millane, and others. The marching cubes meshing and ROS mesh generation were taken or heavily derived from [open_chisel](https://github.com/personalrobotics/OpenChisel). We've retained the copyright headers for the relevant files.
 

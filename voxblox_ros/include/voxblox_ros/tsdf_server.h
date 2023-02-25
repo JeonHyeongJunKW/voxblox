@@ -175,12 +175,12 @@ class TsdfServer {
    * Name of the ICP corrected frame. Publishes TF and transform topic to this
    * if ICP on.
    */
-  std::string icp_corrected_frame_;
+  std::string icp_corrected_frame_; // ICP로 보정된 프레임입니다.
   /// Name of the pose in the ICP correct Frame.
-  std::string pose_corrected_frame_;
+  std::string pose_corrected_frame_;// 해당프레임이 가지는 포즈에 대한 이름입니다.
 
   /// Delete blocks that are far from the system to help manage memory
-  double max_block_distance_from_body_;
+  double max_block_distance_from_body_; // 너무 먼블록은 제거합니다.
 
   /// Pointcloud visualization settings.
   double slice_level_;

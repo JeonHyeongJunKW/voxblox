@@ -20,15 +20,16 @@ inline TsdfMap::Config getTsdfMapConfigFromRosParam(
    * Workaround for OS X on mac mini not having specializations for float
    * for some reason.
    */
-  double voxel_size = tsdf_config.tsdf_voxel_size;
-  int voxels_per_side = tsdf_config.tsdf_voxels_per_side;
-  nh_private.param("tsdf_voxel_size", voxel_size, voxel_size);
+  double voxel_size = tsdf_config.tsdf_voxel_size; //복셀의 크기를 받아옵니다.
+  int voxels_per_side = tsdf_config.tsdf_voxels_per_side; // 사이드별 복셀수를 얻어옵니다.
+  nh_private.param("tsdf_voxel_size", voxel_size, voxel_size); //파라미터로부터 얻어옵니다. 없으면 그냥 기본값을 씁니다.
   nh_private.param("tsdf_voxels_per_side", voxels_per_side, voxels_per_side);
   if (!isPowerOfTwo(voxels_per_side)) {
     ROS_ERROR("voxels_per_side must be a power of 2, setting to default value");
     voxels_per_side = tsdf_config.tsdf_voxels_per_side;
   }
 
+  //데이터를 수정합니다.
   tsdf_config.tsdf_voxel_size = static_cast<FloatingPoint>(voxel_size);
   tsdf_config.tsdf_voxels_per_side = voxels_per_side;
 
@@ -55,7 +56,7 @@ inline ICP::Config getICPConfigFromRosParam(const ros::NodeHandle& nh_private) {
 
   return icp_config;
 }
-
+//파라미터로부터 config 파일을 수저하여 반환합니다.
 inline TsdfIntegratorBase::Config getTsdfIntegratorConfigFromRosParam(
     const ros::NodeHandle& nh_private) {
   TsdfIntegratorBase::Config integrator_config;
@@ -165,7 +166,7 @@ inline EsdfIntegrator::Config getEsdfIntegratorConfigFromRosParam(
 
   return esdf_integrator_config;
 }
-
+// 색과 최소 가중치에 대한 내용을 저장합니다.
 inline MeshIntegratorConfig getMeshIntegratorConfigFromRosParam(
     const ros::NodeHandle& nh_private) {
   MeshIntegratorConfig mesh_integrator_config;

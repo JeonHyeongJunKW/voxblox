@@ -8,6 +8,7 @@
 
 namespace voxblox {
 
+//노드만 받으면, 아래의 생성자로 바로 이동한다. 
 TsdfServer::TsdfServer(const ros::NodeHandle& nh,
                        const ros::NodeHandle& nh_private)
     : TsdfServer(nh, nh_private, getTsdfMapConfigFromRosParam(nh_private),
@@ -22,51 +23,53 @@ TsdfServer::TsdfServer(const ros::NodeHandle& nh,
     : nh_(nh),
       nh_private_(nh_private),
       verbose_(true),
-      world_frame_("world"),
-      icp_corrected_frame_("icp_corrected"),
+      world_frame_("world"),// world로 고정임
+      icp_corrected_frame_("icp_corrected"),// 보정된 프레임이름입니다.
       pose_corrected_frame_("pose_corrected"),
-      max_block_distance_from_body_(std::numeric_limits<FloatingPoint>::max()),
-      slice_level_(0.5),
-      use_freespace_pointcloud_(false),
-      color_map_(new RainbowColorMap()),
-      publish_pointclouds_on_update_(false),
-      publish_slices_(false),
-      publish_pointclouds_(false),
-      publish_tsdf_map_(false),
+      max_block_distance_from_body_(std::numeric_limits<FloatingPoint>::max()),//버릴 한계범위
+      slice_level_(0.5),//tsdf가 만들어지는 높이
+      use_freespace_pointcloud_(false),//필요없을 듯
+      color_map_(new RainbowColorMap()),//칼라맵 종류
+      publish_pointclouds_on_update_(false),//업데이트된 포인트 클라우드를 퍼블리시 할거냐?
+      publish_slices_(false),//수평 맵을 퍼블시할지를 결정합니다.
+      publish_pointclouds_(false),//모든 할당된 복셀을 보여준다.
+      publish_tsdf_map_(false),//이게 true로 되어있다면, 전체 TSDF layer를 듣고 잇는 노드(tsdf_layer_in를 듣는)를 업데이트 하기위해서 퍼블리시한다.
       cache_mesh_(false),
-      enable_icp_(false),
-      accumulate_icp_corrections_(true),
-      pointcloud_queue_size_(1),
-      num_subscribers_tsdf_map_(0),
+      enable_icp_(false),//들어오는 pointcloud를 정렬하기 위해서 ICP를 사용합니다.
+      accumulate_icp_corrections_(true),//모든 pointcloud에 걸쳐서 ICP로부터의 보정을 누적할지를 겨정합니다. 만약에 false라면, 새로운 pcl에서 매번리셋됩니다.
+      pointcloud_queue_size_(1),//구독할 포인트클라우드 사이즈
+      num_subscribers_tsdf_map_(0),//
       transformer_(nh, nh_private) {
+  //위의 구문에서 기본값으로 받았던거를 노드 정보에서 얻어옵니다.
   getServerConfigFromRosParam(nh_private);
 
   // Advertise topics.
   surface_pointcloud_pub_ =
       nh_private_.advertise<pcl::PointCloud<pcl::PointXYZRGB> >(
-          "surface_pointcloud", 1, true);
+          "surface_pointcloud", 1, true);//표면에 가까운 색칠된 포인트 클라우드, publish_tsdf_info가 활성화를 결정합니다.
   tsdf_pointcloud_pub_ =
       nh_private_.advertise<pcl::PointCloud<pcl::PointXYZI> >("tsdf_pointcloud",
-                                                              1, true);
+                                                              1, true);// 모든 할당된 복셀을 보여줍니다.
   occupancy_marker_pub_ =
       nh_private_.advertise<visualization_msgs::MarkerArray>("occupied_nodes",
-                                                             1, true);
+                                                             1, true);// 할당된 복셀의 위치를 시각화합니다.(markarray)
   tsdf_slice_pub_ = nh_private_.advertise<pcl::PointCloud<pcl::PointXYZI> >(
       "tsdf_slice", 1, true);
 
   nh_private_.param("pointcloud_queue_size", pointcloud_queue_size_,
                     pointcloud_queue_size_);
   pointcloud_sub_ = nh_.subscribe("pointcloud", pointcloud_queue_size_,
-                                  &TsdfServer::insertPointcloud, this);
+                                  &TsdfServer::insertPointcloud, this);//포인트 클라우드를 얻어옵니다.
 
-  mesh_pub_ = nh_private_.advertise<voxblox_msgs::Mesh>("mesh", 1, true);
+  mesh_pub_ = nh_private_.advertise<voxblox_msgs::Mesh>("mesh", 1, true);//대기열에서 마지막 데이터 전송여부
 
   // Publishing/subscribing to a layer from another node (when using this as
   // a library, for example within a planner).
+  // 다른 노드로부터 하나의 레이어를 퍼블리시, 섭스크라이브 하는 부분
   tsdf_map_pub_ =
       nh_private_.advertise<voxblox_msgs::Layer>("tsdf_map_out", 1, false);
   tsdf_map_sub_ = nh_private_.subscribe("tsdf_map_in", 1,
-                                        &TsdfServer::tsdfMapCallback, this);
+                                        &TsdfServer::tsdfMapCallback, this);// 이건 정작 받는부분
   nh_private_.param("publish_tsdf_map", publish_tsdf_map_, publish_tsdf_map_);
 
   if (use_freespace_pointcloud_) {
@@ -74,7 +77,7 @@ TsdfServer::TsdfServer(const ros::NodeHandle& nh,
     // These will only be used to mark freespace beyond the truncation distance.
     freespace_pointcloud_sub_ =
         nh_.subscribe("freespace_pointcloud", pointcloud_queue_size_,
-                      &TsdfServer::insertFreespacePointcloud, this);
+                      &TsdfServer::insertFreespacePointcloud, this);//자유공간의 포인트 클라우드를 따로 넣는다.경로생성용?
   }
 
   if (enable_icp_) {
@@ -214,6 +217,8 @@ void TsdfServer::processPointCloudMessageAndInsert(
     const sensor_msgs::PointCloud2::Ptr& pointcloud_msg,
     const Transformation& T_G_C, const bool is_freespace_pointcloud) {
   // Convert the PCL pointcloud into our awesome format.
+  // TODO : 해석해야함, 여기서 이미지의 semantic 정보를 넘겨줄 수 있을 거같음.
+  //포멧을 바꾸는 건가보다
 
   // Horrible hack fix to fix color parsing colors in PCL.
   bool color_pointcloud = false;
@@ -330,20 +335,20 @@ bool TsdfServer::getNextPointcloudFromQueue(
   if (queue->empty()) {
     return false;
   }
-  *pointcloud_msg = queue->front();
+  *pointcloud_msg = queue->front();//처음있는걸 가져옵니다.
   if (transformer_.lookupTransform((*pointcloud_msg)->header.frame_id,
                                    world_frame_,
                                    (*pointcloud_msg)->header.stamp, T_G_C)) {
-    queue->pop();
+    queue->pop();//만약에 전역자세를 얻을 수 있다면, 그냥 return합니다.
     return true;
-  } else {
-    if (queue->size() >= kMaxQueueSize) {
+  } else {//전역자세를 못얻고,
+    if (queue->size() >= kMaxQueueSize) {//큐의 사이즈를 넘어간다면
       ROS_ERROR_THROTTLE(60,
                          "Input pointcloud queue getting too long! Dropping "
                          "some pointclouds. Either unable to look up transform "
                          "timestamps or the processing is taking too long.");
       while (queue->size() >= kMaxQueueSize) {
-        queue->pop();
+        queue->pop();//너무 많다면, pop을 적정수준으로 해줍니다.
       }
     }
   }
@@ -354,19 +359,20 @@ void TsdfServer::insertPointcloud(
     const sensor_msgs::PointCloud2::Ptr& pointcloud_msg_in) {
   if (pointcloud_msg_in->header.stamp - last_msg_time_ptcloud_ >
       min_time_between_msgs_) {
-    last_msg_time_ptcloud_ = pointcloud_msg_in->header.stamp;
+    last_msg_time_ptcloud_ = pointcloud_msg_in->header.stamp;//시간을 확인합니다.
     // So we have to process the queue anyway... Push this back.
-    pointcloud_queue_.push(pointcloud_msg_in);
+    pointcloud_queue_.push(pointcloud_msg_in);// 시간이 맞는다면 삽입합니다.
   }
 
   Transformation T_G_C;
   sensor_msgs::PointCloud2::Ptr pointcloud_msg;
   bool processed_any = false;
   while (
-      getNextPointcloudFromQueue(&pointcloud_queue_, &pointcloud_msg, &T_G_C)) {
+      getNextPointcloudFromQueue(&pointcloud_queue_, &pointcloud_msg, &T_G_C)) {//큐에있는 포인트 클라우드를 가져옵니다.
     constexpr bool is_freespace_pointcloud = false;
+    
     processPointCloudMessageAndInsert(pointcloud_msg, T_G_C,
-                                      is_freespace_pointcloud);
+                                      is_freespace_pointcloud);//포이트클라우드 메시지를 처리후에 삽입한다.
     processed_any = true;
   }
 
@@ -375,13 +381,13 @@ void TsdfServer::insertPointcloud(
   }
 
   if (publish_pointclouds_on_update_) {
-    publishPointclouds();
+    publishPointclouds();//포인트클라우드를 업데이트 후에 퍼블리시한다.
   }
 
   if (verbose_) {
-    ROS_INFO_STREAM("Timings: " << std::endl << timing::Timing::Print());
+    ROS_INFO_STREAM("Timings: " << std::endl << timing::Timing::Print()); //이만큼 시간이 걸린다.
     ROS_INFO_STREAM(
-        "Layer memory: " << tsdf_map_->getTsdfLayer().getMemorySize());
+        "Layer memory: " << tsdf_map_->getTsdfLayer().getMemorySize());//tsdf의 메모리를 가져와서 출력한다.
   }
 }
 
@@ -417,9 +423,9 @@ void TsdfServer::publishAllUpdatedTsdfVoxels() {
   // Create a pointcloud with distance = intensity.
   pcl::PointCloud<pcl::PointXYZI> pointcloud;
 
-  createDistancePointcloudFromTsdfLayer(tsdf_map_->getTsdfLayer(), &pointcloud);
+  createDistancePointcloudFromTsdfLayer(tsdf_map_->getTsdfLayer(), &pointcloud);//tsdf layer로부터 거리 포인트클라우드를 만든다.
 
-  pointcloud.header.frame_id = world_frame_;
+  pointcloud.header.frame_id = world_frame_;//world 프레임기준으로 출력한다.
   tsdf_pointcloud_pub_.publish(pointcloud);
 }
 
@@ -482,11 +488,11 @@ void TsdfServer::publishMap(bool reset_remote_map) {
 void TsdfServer::publishPointclouds() {
   // Combined function to publish all possible pointcloud messages -- surface
   // pointclouds, updated points, and occupied points.
-  publishAllUpdatedTsdfVoxels();
-  publishTsdfSurfacePoints();
-  publishTsdfOccupiedNodes();
+  publishAllUpdatedTsdfVoxels();//업데이트된 TSDF복셀을 퍼블리쉬한다.
+  publishTsdfSurfacePoints();//surface 점들을 출력한다.
+  publishTsdfOccupiedNodes();//차지하는 노드들을 출력한다.
   if (publish_slices_) {
-    publishSlices();
+    publishSlices();//slice를 출력한다. 
   }
 }
 
